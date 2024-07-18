@@ -22,7 +22,8 @@ from scipy.signal import hilbert
 c = 3e8
 time_to_pavement_surface = 0.5/c
 
-
+def scientific_notation(x):
+    return f"{x:.2e}"
 # calculation definitions
 def read_data(file):
     df = pd.read_csv(file)
@@ -130,7 +131,7 @@ def get_subtracted_signal(signal_to_be_subtracted, subtract_template):
 
 
 # upload file
-
+st.title("Enhanced Layer Detector")
 a_scan = st.file_uploader("Upload a file", type=["csv"])
 
 if a_scan is not None:
@@ -163,11 +164,13 @@ if a_scan is not None:
 
    st.session_state.templated_signal_symmetry = np.concatenate((left_side, right_side))
     #plot template signal
-   template_signal_plot = px.line(st.session_state.constructed_template_signal, x=st.session_state.constructed_template_signal['Time'], y=p, title='Constructed Template Signal- Original Fit and Symmetry Fit')
+   template_signal_plot = go.Figure()
+   template_signal_plot.add_trace(go.Scatter( x=st.session_state.constructed_template_signal['Time'], y=p,  mode='lines', name = 'Fitted Template signal'))
    template_signal_plot.add_trace(go.Scatter(x=st.session_state.constructed_template_signal['Time'], y=st.session_state.templated_signal_symmetry , mode='lines', name='Symmetry Template signal'))
    template_signal_plot.update_layout(xaxis_title='Time (s)', yaxis_title='Amplitude')
    template_signal_plot.data[1].line.color = 'darkviolet'
    template_signal_plot.data[0].line.dash= 'dash'
+   template_signal_plot.update_layout(title = 'Template Signal')
    st.plotly_chart(template_signal_plot)
 
 
@@ -177,20 +180,19 @@ if a_scan is not None:
    st.session_state.time ,st.session_state.analytical_y = hilbert_transform(st.session_state.df)
 #    st.write(type(st.session_state.analytical_y))
    st.session_state.peak_times, peak_height, sorted_peaksid_height_array = find_peaks_from_signal(st.session_state.analytical_y, st.session_state.time)
-   original_signal_plot_with_envelope = px.line(st.session_state.df, x='Time', y='Real', title='Original Signal with Envelop')
+   original_signal_plot_with_envelope = go.Figure()
+   original_signal_plot_with_envelope.add_trace(go.Scatter(x=st.session_state.df['Time'], y=st.session_state.df['Real'], mode='lines' , name='Received Signal'))
    original_signal_plot_with_envelope.add_trace(go.Scatter(x=st.session_state.time, y=st.session_state.analytical_y, mode='lines', name='Envelope'))
    original_signal_plot_with_envelope.add_trace(go.Scatter(x=st.session_state.peak_times, y=peak_height['peak_heights'], mode='markers', name='Envelope Peaks'))
 #    original_signal_plot_with_envelope.add_trace(go.Scatter(x=[0], y=[0], mode='lines', name='Pavement Surface Reflection'))
-   original_signal_plot_with_envelope.add_shape(
-    type="line",
-    x0=time_to_pavement_surface*2,
-    y0=-1,
-    x1=time_to_pavement_surface*2,
-    y1=1,
-    xref="x",
-    yref="paper",
-    line=dict(color="fuchsia", width=2, dash="dash"),
-    name="Pavement Surface Reflection"  # Add the name for the vertical line
+   original_signal_plot_with_envelope.add_trace(
+    go.Scatter(
+        x=[time_to_pavement_surface*2, time_to_pavement_surface*2],
+        y=[min(st.session_state.df['Real']), max(st.session_state.df['Real'])],
+        mode="lines",
+        line=dict(color="fuchsia", width=2, dash="dash"),
+        name="Pavement Surface Reflection(0.5m)"
+    )
 )
 #    original_signal_plot_with_envelope.add_vline(x=time_to_pavement_surface*2, line_width=1, line_dash="dash", line_color="orange", name = 'Pavement Surface Reflection')
    original_signal_plot_with_envelope.update_layout(xaxis_title='Time (s)', yaxis_title='Amplitude')
@@ -242,9 +244,9 @@ if a_scan is not None:
    
    if st.button('Remove Selected Layers'):
     #  print(st.session_state.df['Time'].iloc[0,st.session_state.selected_peaks] )
-     st.write(st.session_state.selected_peaks)
+    #  st.write(st.session_state.selected_peaks)
      st.session_state.peak_times_disp = []
-     st.write(time_to_pavement_surface*2)
+    #  st.write(time_to_pavement_surface*2)
     #  if st.session_state.peak_times.iloc[0] < time_to_pavement_surface*2:
     #     st.write(st.session_state.peak_times.iloc[1])
     #  else:
@@ -271,7 +273,7 @@ if a_scan is not None:
        
 
        seleceted_peaks = remove_peaks_before_surface(sorted_peaksid_height_array, st.session_state.num_layers -(layer+1), st.session_state.df)
-       st.write(seleceted_peaks)
+    #    st.write(seleceted_peaks)
        st.session_state.peak_times_disp.append(st.session_state.df['Time'].iloc[peak_idx])
      subtracted_signal_plot = go.Figure()
 
@@ -282,9 +284,76 @@ if a_scan is not None:
      #    subtracted_signal_plot.data[0].name = 'Subtracted Signal'
      subtracted_signal_plot.data[1].line.color = 'lime'
      st.plotly_chart(subtracted_signal_plot)
-     st.write(st.session_state.peak_times_disp)
-     
+     st.session_state.peak_times_disp = st.session_state.peak_times_disp[1:]
+     st.header('Time for Given Layers')
 
+     time_df = pd.DataFrame({'Layer No.': [f'Layer {i+1}' for i in range(st.session_state.num_layers)], 
+                             'Time(s)': st.session_state.peak_times_disp,
+                             'Depth(mm)': np.array(st.session_state.peak_times_disp)*3e8*1000/2,
+                             
+                             
+                             })
+     time_df['Time(s)'] = time_df['Time(s)'].apply(lambda x: f'{x:.2e}')
+     st.table(time_df)
+
+     #create 2 points with simialar heights for  all layer
+     x = np.linspace(0, 100, 20)
+     y = np.linspace(0, 200, 20)
+
+     x_grid, y_grid = np.meshgrid(x,y)
+
+     grid = np.stack((x_grid, y_grid,np.random.normal(loc=time_df['Depth(mm)'].iloc[0], scale=10, size=(20, 20))), axis = -1)
+     grid_temp =[]
+     for i in range (len(time_df['Depth(mm)'])):
+       
+        grid_temp.append(np.random.normal(loc=time_df['Depth(mm)'].iloc[i], scale=10, size=(20, 20)))
+    
+       
+     print(grid.shape, grid)
+    # Create a 3D surface plot
+     x_vals = grid[:, :, 0]
+     y_vals = grid[:, :, 1]
+    #  z_vals = grid[:, :, 2]
+     color_schemes = [
+    'Viridis',
+    'Cividis',
+    'Bluered',
+    'Jet',
+    'Plasma',
+    'Warm',
+    'Cool',
+    'Rainbow',
+    'Jet',
+    'Bluered'
+]
+     fig = go.Figure()
+     for i in range(len(grid_temp)):
+        fig.add_trace(go.Surface(x=x_vals, y=y_vals, z=grid_temp[i], colorscale=color_schemes[i], showscale=False))
+
+     fig.update_layout(
+    title='Layer levels',
+    scene=dict(
+        xaxis_title='X Direction',
+        yaxis_title='Y Direction',
+        zaxis=dict(title='Depth (mm)', autorange = 'reversed')
+            # Adjust the range as needed
+    ),
+    width = 1200,
+             height = 800 
+)
+     
+     ##range=[min(time_df['Depth(mm)'])-min(time_df['Depth(mm)'])/2, max(time_df['Depth(mm)'])+min(time_df['Depth(mm)'])/2]
+
+    #  fig = plt.figure()
+    #  ax = fig.add_subplot(111, projection='3d')
+    #  # Plot the surface. 
+    #  ax.plot_surface(x_grid, y_grid, z_vals, cmap='viridis')
+
+    #  st.pyplot(fig)
+     st.plotly_chart(fig)
+
+     
+st.markdown("<br><br><hr><center>© 2024 Siththarththan Arunthavabalan. All rights reserved.</center>", unsafe_allow_html=True)
 
 
  
