@@ -320,9 +320,9 @@ if a_scan is not None:
     'Bluered',
     'Jet',
     'Plasma',
-    'Warm',
-    'Cool',
-    'Rainbow',
+    'solar',
+    'spectral',
+    'delta',
     'Jet',
     'Bluered'
 ]
