@@ -328,7 +328,7 @@ if a_scan is not None:
 ]
      fig = go.Figure()
      for i in range(len(grid_temp)):
-        fig.add_trace(go.Surface(x=x_vals, y=y_vals, z=grid_temp[i], colorscale=color_schemes[i], showscale=False))
+        fig.add_trace(go.Surface(x=x_vals, y=y_vals, z=grid_temp[i], colorscale=color_schemes[i%10], showscale=False))
 
      fig.update_layout(
     title='Layer levels',
