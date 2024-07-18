@@ -285,7 +285,7 @@ if a_scan is not None:
      subtracted_signal_plot.data[1].line.color = 'lime'
      st.plotly_chart(subtracted_signal_plot)
      st.session_state.peak_times_disp = st.session_state.peak_times_disp[1:]
-     st.header('Time for Given Layers')
+     st.subheader('Travel Time and Depth for Given Layers')
 
      time_df = pd.DataFrame({'Layer No.': [f'Layer {i+1}' for i in range(st.session_state.num_layers)], 
                              'Time(s)': st.session_state.peak_times_disp,
